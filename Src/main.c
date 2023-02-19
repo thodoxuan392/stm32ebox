@@ -35,6 +35,11 @@
 #include "app_init.h"
 #include "app_send_sms.h"
 #include "netif.h"
+#include "modbus.h"
+
+// Test
+#include "app_mqtt_test.h"
+#include "app_modbus_test.h"
 
 #define		NORMAL_RUN	0
 #define		TEST_RUN	1
@@ -94,10 +99,14 @@ int main(void)
 	    MX_IWDG_Init();
 	}
 #endif
+	utils_log_init(UTILS_LOG_ALL);
 	netif_init();
+	MODBUS_init();
 	while (1){
 		netif_run();
+		MODBUS_run();
 		mqtt_run();
+		modbus_run();
 		SCH_Dispatch_Tasks();
 		if(runtestState == NORMAL_RUN){
 			Main_FSM();
