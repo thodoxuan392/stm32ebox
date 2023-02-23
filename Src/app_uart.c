@@ -36,13 +36,13 @@ HAL_StatusTypeDef Sim3g_Receive_Setup(void);
 
 void UART1_Init(void){
 	Uart1Handle.Instance          = USART1;
-
-	Uart1Handle.Init.BaudRate     = 115200;
-	Uart1Handle.Init.WordLength   = UART_WORDLENGTH_8B;
+	Uart1Handle.Init.BaudRate     = 9600;
+	Uart1Handle.Init.WordLength   = UART_WORDLENGTH_9B;
 	Uart1Handle.Init.StopBits     = UART_STOPBITS_1;
-	Uart1Handle.Init.Parity       = UART_PARITY_NONE;
+	Uart1Handle.Init.Parity       = UART_PARITY_EVEN;
 	Uart1Handle.Init.HwFlowCtl    = UART_HWCONTROL_NONE;
 	Uart1Handle.Init.Mode         = UART_MODE_TX_RX;
+	Uart1Handle.Init.OverSampling = UART_OVERSAMPLING_16;
 
 	if(HAL_UART_DeInit(&Uart1Handle) != HAL_OK){
 		Error_Handler();
@@ -186,7 +186,6 @@ uint8_t Uart1_Read_Received_Buffer(void){
 	receiveBufferIndexTail = (receiveBufferIndexTail + 1) % RXBUFFERSIZE;
 	buffer[0] = ch;
 	buffer[1] = 0;
-	UART3_SendToHost(buffer);
 	return ch;
 }
 

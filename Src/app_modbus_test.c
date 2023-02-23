@@ -1,67 +1,66 @@
 /*
  * app_modbus_test.c
  *
- *  Created on: Feb 19, 2023
+ *  Created on: Feb 23, 2023
  *      Author: xuanthodo
  */
 
-#include "main.h"
+#include "app_modbus_test.h"
 #include "modbus.h"
-#include "utils_logger.h"
-
-#define MODBUS_TIMEOUT 100 //100 MS
-#define MODBUS_POLL_INTERVAL 1000 //1000 MS
-
-// Internal functions
-static void modbus_log_message(MODBUS_t* message);
-
+#include "utils/utils_logger.h"
 
 enum {
-	MODBUS_SEND_REQUEST = 0,
-	MODBUS_WAIT_FOR_RECEIVE
+	MODBUS_SEND_REQUEST,
+	MODBUS_WAIT_FOR_GET_RESPONSE
 };
 
-static uint8_t modbus_task_state = MODBUS_SEND_REQUEST;
 
-void modbus_run(){
-	static uint32_t tx_time = 0;
-	static uint32_t rx_time = 0;
-	static MODBUS_t rx_message;
-	switch (modbus_task_state) {
+static const uint16_t modbus_request_interval = 1000; //1000 ms
+static const uint16_t modbus_app_timeout = 1000; //1000 ms
+static const MODBUS_t read_holding_req = {
+		.address = 10,
+		.function_code = MODBUS_READ_INPUT_REGISTER,
+		.data = {
+			.read_req = {
+				.addr = 0x0000,	// Register address
+				.quantity = 2	// read 2 bytes
+			}
+		},
+};
+
+static MODBUS_t response;
+
+
+static uint8_t modbus_state = MODBUS_SEND_REQUEST;
+
+void modbus_test_run(){
+	static uint8_t *data_p;
+	static uint32_t start_tx_time = 0;
+	switch (modbus_state) {
 		case MODBUS_SEND_REQUEST:
-			// Check time interval
-			if(HAL_GetTick() - rx_time < MODBUS_POLL_INTERVAL){
-				break;
-			}
-			MODBUS_t tx_message = {
-				.address = 0x05,		// Modbus Slave Address
-				.function_code = MODBUS_READ_INPUT_REGISTER,
-				.data = {
-					.read_req = {
-						.addr = 0x0000,		// Register Address is 0x00
-						.quantity = 10		// Read 10 Register
-					}
-				}
-			};
-			MODBUS_transmit(&tx_message);
-			// Start transmission 
-			tx_time = HAL_GetTick();
-			modbus_task_state = MODBUS_WAIT_FOR_RECEIVE;
+			utils_log_info("MODBUS send request\r\n");
+			start_tx_time = HAL_GetTick();
+			MODBUS_transmit(&read_holding_req);
+			modbus_state = MODBUS_WAIT_FOR_GET_RESPONSE;
 			break;
-		case MODBUS_WAIT_FOR_RECEIVE:
-			// Check timeout
-			if(HAL_GetTick() - tx_time >= MODBUS_TIMEOUT){
-				utils_log_error("MODBUS timeout for receive\r\n");
-				modbus_task_state = MODBUS_SEND_REQUEST;
-				rx_time  = HAL_GetTick();
-				break;
+		case MODBUS_WAIT_FOR_GET_RESPONSE:
+			if(MODBUS_receive(&response)){
+				utils_log_info("MODBUS_received:\r\n");
+				utils_log_info("Addr: %d\r\n", response.address);
+				utils_log_info("Function code: %x\r\n", response.function_code);
+				utils_log_info("Data: [");
+				data_p = (uint8_t*)&response.data;
+				for (size_t i = 0; i < 20; i++)
+				{
+					utils_log_raw("%x", data_p[i]);
+				}
+				utils_log_raw("]\r\n");
+				modbus_state = MODBUS_SEND_REQUEST;
 			}
-			if(MODBUS_receive(&rx_message)){
-				utils_log_info("MODBUS receive message\r\n");
-				modbus_log_message(&rx_message);
-				modbus_task_state = MODBUS_SEND_REQUEST;
-				rx_time  = HAL_GetTick();
-				break;
+
+			if (HAL_GetTick() - start_tx_time > modbus_app_timeout){
+				utils_log_info("Modbus timeout for receive\r\n");
+				modbus_state = MODBUS_SEND_REQUEST;
 			}
 			break;
 		default:
@@ -69,15 +68,3 @@ void modbus_run(){
 	}
 }
 
-// Internal function
-static void modbus_log_message(MODBUS_t* message){
-	utils_log_info("Slave Address: %x\r\n", message->address);
-	utils_log_info("Function Code: %x\r\n", message->function_code);
-	utils_log_info("Data Raw:\r\n[");
-	uint16_t data_len = sizeof(message->data);
-	uint8_t* data_p = (uint8_t*)&message->data;
-	for(int i=0; i< data_len; i++){
-		utils_log_info("%x", data_p[i]);
-	}
-	utils_log_info("]\r\n");
-}

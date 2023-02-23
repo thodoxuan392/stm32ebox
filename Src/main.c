@@ -36,6 +36,7 @@
 #include "app_send_sms.h"
 #include "netif.h"
 #include "modbus.h"
+#include "utils/utils_logger.h"
 
 // Test
 #include "app_mqtt_test.h"
@@ -103,10 +104,10 @@ int main(void)
 	netif_init();
 	MODBUS_init();
 	while (1){
-		netif_run();
+//		netif_run();
 		MODBUS_run();
-		mqtt_run();
-		modbus_run();
+//		mqtt_run();
+		modbus_test_run();
 		SCH_Dispatch_Tasks();
 		if(runtestState == NORMAL_RUN){
 			Main_FSM();
